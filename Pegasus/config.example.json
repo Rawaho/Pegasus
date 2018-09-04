@@ -1,0 +1,13 @@
+﻿{
+    "Network":{
+        "Host":"0.0.0.0",
+        "Port":13124,
+    },
+    "MySql":{
+        "Host":"127.0.0.1",
+        "Port":3306,
+        "Database":"Pegasus",
+        "Username":"root",
+        "Password":""
+    }
+}
