@@ -4,7 +4,6 @@ using System.Reflection;
 using NLog;
 using NLog.Config;
 using Pegasus.Configuration;
-using Pegasus.Database;
 using Pegasus.Map;
 using Pegasus.Network;
 
@@ -37,7 +36,6 @@ namespace Pegasus
             try
             {
                 ConfigManager.Initialise($"{Directory.GetCurrentDirectory()}\\Config.json");
-                DatabaseManager.Initialise(ConfigManager.Config.MySql);
                 PacketManager.Initialise();
                 WorldManager.Initialise();
                 DungeonTileManager.Initialise();

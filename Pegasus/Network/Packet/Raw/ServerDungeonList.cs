@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using Pegasus.Map;
 
 namespace Pegasus.Network.Packet.Raw
 {
@@ -10,10 +11,10 @@ namespace Pegasus.Network.Packet.Raw
             public ushort LandBlockId { get; }
             public string Name { get; }
 
-            public Dungeon(ushort landBlockId, string name)
+            public Dungeon(DungeonInfo dungeonInfo)
             {
-                LandBlockId = landBlockId;
-                Name        = name;
+                LandBlockId = dungeonInfo.LandBlockId;
+                Name        = dungeonInfo.Name;
             }
         }
 

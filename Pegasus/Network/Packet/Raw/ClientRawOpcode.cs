@@ -5,7 +5,7 @@
         CharacterFellowshipUpdate  = 1,
         CharacterSequenceUpdate  = 2,
         CharacterUpdate  = 3,
-        const_3  = 4,
+        DungeonTiles  = 4,
         const_4  = 5,
         const_5  = 6,
         DungeonList  = 7,

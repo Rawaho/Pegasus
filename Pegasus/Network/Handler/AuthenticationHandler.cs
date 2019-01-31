@@ -1,8 +1,7 @@
-﻿using System;
-using NLog;
+﻿using NLog;
 using Pegasus.Cryptography;
 using Pegasus.Database;
-using Pegasus.Database.Data;
+using Pegasus.Database.Model;
 using Pegasus.Network.Packet;
 using Pegasus.Social;
 
@@ -49,9 +48,9 @@ namespace Pegasus.Network.Handler
                 return;
             }
 
-            AccountInfo accountInfo = DatabaseManager.Database.GetAccount(username);
+            Account accountInfo = DatabaseManager.GetAccount(username);
             if (accountInfo == null)
-                accountInfo = DatabaseManager.Database.CreateAccount(username, password, session.Remote.Address.ToString(), Privilege.All);
+                accountInfo = DatabaseManager.CreateAccount(username, password, session.Remote.Address, Privilege.All);
             else
             {
                 // validate existing account
@@ -64,7 +63,7 @@ namespace Pegasus.Network.Handler
 
             log.Info($"Account: {accountInfo.Username}, Character: {characterObject.Name} has signed in!");
 
-            DatabaseManager.Database.UpdateAccount(accountInfo.Id, session.Remote.Address.ToString());
+            DatabaseManager.UpdateAccount(accountInfo.Id, session.Remote.Address);
 
             var authentication = new NetworkObject();
             authentication.AddField(0, NetworkObjectField.CreateIntField((int)ObjectOpcode.Authenticate));

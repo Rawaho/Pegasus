@@ -3,8 +3,8 @@ using System.IO;
 
 namespace Pegasus.Network.Packet.Raw
 {
-    [ClientRawPacket(ClientRawOpcode.const_3)]
-    public class ClientPacket04 : ClientRawPacket
+    [ClientRawPacket(ClientRawOpcode.DungeonTiles)]
+    public class ClientDungeonTiles : ClientRawPacket
     {
         public List<uint> CellIds { get; } = new List<uint>();
 

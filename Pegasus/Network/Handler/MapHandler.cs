@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Pegasus.Database.Data;
-using Pegasus.Map;
+﻿using Pegasus.Map;
 using Pegasus.Network.Packet;
 using Pegasus.Network.Packet.Raw;
 
@@ -34,49 +31,37 @@ namespace Pegasus.Network.Handler
         {
             var dungeonList = new ServerDungeonList
             {
-                SearchParameter = packet.SearchParameter,
+                SearchParameter = packet.SearchParameter
             };
 
             foreach (DungeonInfo dungeonInfo in DungeonTileManager.GetDungeonInfo(packet.SearchParameter))
-                dungeonList.Dungeons.Add(new ServerDungeonList.Dungeon(dungeonInfo.LandBlockId, dungeonInfo.Name));
+                dungeonList.Dungeons.Add(new ServerDungeonList.Dungeon(dungeonInfo));
 
             session.EnqueuePacket(dungeonList);
         }
 
-
-
-
-
-
-
-
-        [RawPacketHandler(ClientRawOpcode.const_3)]
-        public static void HandleBla(Session session, ClientPacket04 packet)
+        [RawPacketHandler(ClientRawOpcode.DungeonTiles)]
+        public static void HandleDungeonTile(Session session, ClientDungeonTiles packet)
         {
             foreach (uint cellId in packet.CellIds)
             {
-                var dungeonTiles = new ServerPacket03();
-
-                List<DungeonTileInfo> tiles = DungeonTileManager.GetDungeonTileInfo((ushort)cellId);
-                if (tiles == null)
+                DungeonInfo dungeonInfo = DungeonTileManager.GetDungeonInfo((ushort)cellId);
+                if (dungeonInfo == null)
                     continue;
 
-                foreach (DungeonTileInfo dungeonTile in tiles)
+                var dungeonTiles = new ServerDungeonTiles();
+                foreach (DungeonTileInfo dungeonTileInfo in dungeonInfo)
                 {
-                    dungeonTiles.Tiles.Add(new ServerPacket03.Tile
+                    dungeonTiles.Tiles.Add(new ServerDungeonTiles.Tile
                     {
-                        X           = dungeonTile.Origin.X,
-                        Y           = dungeonTile.Origin.Y,
-                        Z           = dungeonTile.Origin.Z,
-                        TileId      = dungeonTile.TileId,
-                        LandBlockId = dungeonTile.LandBlockId,
-                        ushort_2 = 0,
-                        byte_0 = 1
+                        X           = dungeonTileInfo.Origin.X,
+                        Y           = dungeonTileInfo.Origin.Y,
+                        Z           = dungeonTileInfo.Origin.Z,
+                        TileId      = dungeonTileInfo.TileId,
+                        LandBlockId = dungeonTileInfo.LandBlockId,
+                        ushort_2    = 0,
+                        byte_0      = 1
                     });
-
-
-
-
                 }
 
                 session.EnqueuePacket(dungeonTiles);

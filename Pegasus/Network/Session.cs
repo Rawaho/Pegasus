@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Pegasus.Database.Data;
+using Pegasus.Database.Model;
 using Pegasus.Map;
 using Pegasus.Social;
 
@@ -11,7 +11,7 @@ namespace Pegasus.Network
         /// <summary>
         /// Virindi Integrator account information.
         /// </summary>
-        public AccountInfo Account { get; private set; }
+        public Account Account { get; private set; }
 
         public string CharacterAccount { get; private set; }
         public CharacterObject Character { get; private set; }
@@ -21,7 +21,7 @@ namespace Pegasus.Network
         public List<Channel> Channels { get; } = new List<Channel>();
         public List<Fellowship> Fellowships { get; } = new List<Fellowship>();
 
-        public void SignIn(AccountInfo accountInfo, string characterAccount, CharacterObject characterObject)
+        public void SignIn(Account accountInfo, string characterAccount, CharacterObject characterObject)
         {
             Account          = accountInfo;
             CharacterAccount = characterAccount;

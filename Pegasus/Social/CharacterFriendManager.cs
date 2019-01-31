@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Pegasus.Database;
-using Pegasus.Database.Data;
+using Pegasus.Database.Model;
 using Pegasus.Network;
 using Pegasus.Network.Packet;
 
@@ -17,10 +16,10 @@ namespace Pegasus.Social
         {
             owner = me;
 
-            foreach (string account in DatabaseManager.Database.GetFriends(owner.Account.Id))
+            foreach (string account in DatabaseManager.GetFriends(owner.Account.Id))
                 AddAccount(account);
 
-            foreach (string account in DatabaseManager.Database.GetReverseFriends(owner.Account.Id))
+            foreach (string account in DatabaseManager.GetReverseFriends(owner.Account.Id))
                 foreach (Session session in NetworkManager.FindSession(account))
                     session.FriendManager.CharacterSignIn(owner.Account.Username, owner.Character);
         }
@@ -30,7 +29,7 @@ namespace Pegasus.Social
             if (owner == null)
                 return;
 
-            foreach (string account in DatabaseManager.Database.GetReverseFriends(owner.Account.Id))
+            foreach (string account in DatabaseManager.GetReverseFriends(owner.Account.Id))
                 foreach (Session session in NetworkManager.FindSession(account))
                     session.FriendManager.CharacterSignOut(owner.Account.Username, owner.Character);
         }
@@ -40,11 +39,11 @@ namespace Pegasus.Social
         /// </summary>
         public void AddAccountAll(string account)
         {
-            AccountInfo accountInfo = DatabaseManager.Database.GetAccount(account);
+            Account accountInfo = DatabaseManager.GetAccount(account);
             if (accountInfo == null)
                 return;
 
-            DatabaseManager.Database.AddFriend(owner.Account.Id, accountInfo.Id);
+            Database.DatabaseManager.AddFriend(owner.Account.Id, accountInfo.Id);
 
             IEnumerable<Session> sessions = NetworkManager.FindSession(owner.Account.Username);
             foreach (Session session in sessions)
@@ -106,11 +105,11 @@ namespace Pegasus.Social
         /// </summary>
         public void RemoveAccountAll(string account)
         {
-            AccountInfo accountInfo = DatabaseManager.Database.GetAccount(account);
+            Account accountInfo = DatabaseManager.GetAccount(account);
             if (accountInfo == null)
                 return;
 
-            DatabaseManager.Database.RemoveFriend(owner.Account.Id, accountInfo.Id);
+            DatabaseManager.RemoveFriend(owner.Account.Id, accountInfo.Id);
 
             IEnumerable<Session> sessions = NetworkManager.FindSession(owner.Account.Username);
             foreach (Session session in sessions)

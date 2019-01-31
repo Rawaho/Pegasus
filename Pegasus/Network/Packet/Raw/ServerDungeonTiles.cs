@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Pegasus.Network.Packet.Raw
 {
-    public class ServerPacket03 : ServerRawPacket
+    public class ServerDungeonTiles : ServerRawPacket
     {
         public struct Tile
         {
@@ -20,7 +20,7 @@ namespace Pegasus.Network.Packet.Raw
             public ushort ushort_2;
         }
 
-        public ServerPacket03()
+        public ServerDungeonTiles()
             : base(ServerRawOpcode.const_2)
         {
         }
