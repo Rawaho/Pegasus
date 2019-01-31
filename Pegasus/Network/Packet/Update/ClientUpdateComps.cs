@@ -1,17 +1,22 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
+using Pegasus.Network.Packet.Update.Shared;
 
 namespace Pegasus.Network.Packet.Update
 {
     [UpdatePacket(UpdateType.Comps)]
     public class ClientUpdateComps : ClientUpdatePacket
     {
+        public List<Comp> Comps { get; } = new List<Comp>();
+
         public override void ReadUpdate(BinaryReader reader)
         {
-            int count = reader.ReadInt32();
-            for (int i = 0; i < count; i++)
+            uint count = reader.ReadUInt32();
+            for (uint i = 0u; i < count; i++)
             {
-                string ll = reader.ReadPackedString();
-                uint bb = reader.ReadPackedUInt32();
+                var comp = new Comp();
+                comp.Read(reader);
+                Comps.Add(comp);
             }
         }
     }
