@@ -261,5 +261,14 @@ namespace Pegasus.Map
                 Comps = comps.Comps
             });
         }
+
+        [UpdatePacketHandler(UpdateType.Target)]
+        public static void UpdateTarget(Session session, ClientUpdateTarget target, UpdateParameters parameters)
+        {
+            BroadcastUpdate(session, new ServerUpdateTarget(session.Character.Sequence)
+            {
+                Target = target.Target
+            });
+        }
     }
 }
