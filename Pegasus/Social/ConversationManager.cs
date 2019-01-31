@@ -39,10 +39,6 @@ namespace Pegasus.Social
                 sendTell.AddField(2, NetworkObjectField.CreateStringField(message));
                 session.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.Conversation, sendTell, false));
             }
-
-            if (!sender.Account.Username.Equals(recipient, StringComparison.InvariantCultureIgnoreCase))
-                DatabaseManager.Database.LogConversation(sender.Account.Username, recipient, message,
-                    sender.Remote.Address.ToString(), recipientSessions[0].Remote.Address.ToString());
         }
     }
 }

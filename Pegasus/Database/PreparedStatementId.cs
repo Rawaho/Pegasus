@@ -10,8 +10,6 @@
         FriendDelete,
         FriendInsert,
         FriendSelect,
-        FriendReverseSelect,
-        LogConversation,
-        LogChannel
+        FriendReverseSelect
     }
 }

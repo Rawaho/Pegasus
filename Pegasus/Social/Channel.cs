@@ -57,8 +57,6 @@ namespace Pegasus.Social
             if (!HasMember(member.Character))
                 return;
 
-            DatabaseManager.Database.LogConversation(name, member.Account.Username, message, member.Remote.Address.ToString());
-
             var channelMessage = new NetworkObject();
             channelMessage.AddField(0, NetworkObjectField.CreateIntField((int)ServerChannelAction.Message));
             channelMessage.AddField(1, NetworkObjectField.CreateObjectField(member.Character.ToNetworkObject()));

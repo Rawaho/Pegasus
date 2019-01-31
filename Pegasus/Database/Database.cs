@@ -98,16 +98,6 @@ namespace Pegasus.Database
             return result.Select(r => r.Read<string>("username"));
         }
 
-        public void LogConversation(string sender, string recipient, string message, string senderIp, string recipientIp)
-        {
-            ExecutePreparedStatement(PreparedStatementId.LogConversation, sender, recipient, message, senderIp, recipientIp);
-        }
-
-        public void LogConversation(string channel, string sender, string message, string senderIp)
-        {
-            ExecutePreparedStatement(PreparedStatementId.LogChannel, channel, sender, message, senderIp);
-        }
-
         public IEnumerable<DungeonInfo> GetDungeons()
         {
             MySqlResult result = SelectPreparedStatement(PreparedStatementId.DungeonSelect);
