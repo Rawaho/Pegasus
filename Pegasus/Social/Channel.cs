@@ -18,47 +18,51 @@ namespace Pegasus.Social
             return Regex.Replace(name.ToLower(), @"\s+", "");
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public override void AddMember(Session member)
+        protected override void OnAddMember(CharacterObject character)
         {
-            base.AddMember(member);
-            member.Channels.Add(this);
+            Session session = NetworkManager.FindSessionByCharacter(character);
+            if (session == null)
+                return;
+
+            session.Channels.Add(this);
 
             var channelJoin = new NetworkObject();
             channelJoin.AddField(0, NetworkObjectField.CreateIntField((int)ServerChannelAction.Join));
             channelJoin.AddField(1, NetworkObjectField.CreateStringField(name));
             channelJoin.AddField(2, NetworkObjectField.CreateStringField(GetShortcut()));
-            member.EnqueueMessage(ObjectOpcode.Channel, channelJoin);
+            session.EnqueueMessage(ObjectOpcode.Channel, channelJoin);
+
+            members.Add(character.Sequence, character);
+        }
+
+        protected override void OnRemoveMember(CharacterObject character)
+        {
+            Session session = NetworkManager.FindSessionByCharacter(character);
+            if (session != null)
+            {
+                session.Channels.Remove(this);
+
+                var channelLeave = new NetworkObject();
+                channelLeave.AddField(0, NetworkObjectField.CreateIntField((int)ServerChannelAction.Leave));
+                channelLeave.AddField(1, NetworkObjectField.CreateStringField(name));
+                channelLeave.AddField(2, NetworkObjectField.CreateStringField(GetShortcut()));
+                session.EnqueueMessage(ObjectOpcode.Channel, channelLeave);
+            }
+
+            members.Remove(character.Sequence);
         }
 
         /// <summary>
-        /// 
+        /// Broadcast text message from <see cref="CharacterObject"/> to all members.
         /// </summary>
-        public override void RemoveMember(Session member)
+        public void BroadcastMessage(CharacterObject character, string message)
         {
-            base.AddMember(member);
-            member.Channels.Remove(this);
-
-            var channelLeave = new NetworkObject();
-            channelLeave.AddField(0, NetworkObjectField.CreateIntField((int)ServerChannelAction.Leave));
-            channelLeave.AddField(1, NetworkObjectField.CreateStringField(name));
-            channelLeave.AddField(2, NetworkObjectField.CreateStringField(GetShortcut()));
-            member.EnqueueMessage(ObjectOpcode.Channel, channelLeave);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public void BroadcastMessage(Session member, string message)
-        {
-            if (!HasMember(member.Character))
+            if (!HasMember(character))
                 return;
 
             var channelMessage = new NetworkObject();
             channelMessage.AddField(0, NetworkObjectField.CreateIntField((int)ServerChannelAction.Message));
-            channelMessage.AddField(1, NetworkObjectField.CreateObjectField(member.Character.ToNetworkObject()));
+            channelMessage.AddField(1, NetworkObjectField.CreateObjectField(character.ToNetworkObject()));
             channelMessage.AddField(2, NetworkObjectField.CreateStringField(name));
             channelMessage.AddField(3, NetworkObjectField.CreateStringField(message));
             channelMessage.AddField(4, NetworkObjectField.CreateStringField(GetShortcut()));

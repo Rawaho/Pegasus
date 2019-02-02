@@ -18,19 +18,19 @@ namespace Pegasus.Network.Handler
                 case ClientChannelAction.Join:
                 {
                     Channel channel = ChannelManager.GetChannel(channelName);
-                    channel.AddMember(session);
+                    channel.AddMember(session.Character);
                     break;
                 }
                 case ClientChannelAction.Leave:
                 {
                     Channel channel = ChannelManager.GetChannel(channelName);
-                    channel?.RemoveMember(session);
+                    channel?.RemoveMember(session.Character);
                     break;
                 }
                 case ClientChannelAction.Message:
                 {
                     Channel channel = ChannelManager.GetChannel(channelName);
-                    channel.BroadcastMessage(session, NetworkObjectField.ReadStringField(networkObject.GetField(2)));
+                    channel.BroadcastMessage(session.Character, NetworkObjectField.ReadStringField(networkObject.GetField(2)));
                     break;
                 }
             }

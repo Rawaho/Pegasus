@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using Pegasus.Database.Model;
 using Pegasus.Map;
 using Pegasus.Social;
@@ -40,9 +39,9 @@ namespace Pegasus.Network
             if (Character != null)
                 CharacterUpdateManager.Deregister(Character);
 
-            Channels.ToList().ForEach(c => c.RemoveMember(this));
+            Channels.ForEach(c => c.RemoveMember(Character));
             Channels.Clear();
-            Fellowships.ToList().ForEach(f => f.RemoveMember(this));
+            Fellowships.ForEach(f => f.RemoveMember(Character));
             Fellowships.Clear();
 
             base.Disconnect();

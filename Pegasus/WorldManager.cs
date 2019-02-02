@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Threading;
 using NLog;
-using Pegasus.Network;
 
 namespace Pegasus
 {
@@ -12,12 +11,7 @@ namespace Pegasus
 
         public static volatile bool Shutdown = false;
 
-        public static void Initialise()
-        {
-            StartBackgroundThread();
-        }
-
-        private static void StartBackgroundThread()
+        public static void Initialise(Action<double> action)
         {
             new Thread(() =>
             {
@@ -30,7 +24,7 @@ namespace Pegasus
                     {
                         worldTick.Restart();
 
-                        NetworkManager.Update(lastTick);
+                        action(lastTick);
 
                         Thread.Sleep(1);
                         lastTick = (double)worldTick.ElapsedTicks / Stopwatch.Frequency;

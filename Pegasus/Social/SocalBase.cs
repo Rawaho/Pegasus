@@ -1,42 +1,65 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Pegasus.Network;
 using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Social
 {
-    public abstract class SocalBase
+    public abstract class SocalBase : IUpdate
     {
-        protected readonly List<CharacterObject> members = new List<CharacterObject>();
+        protected readonly Dictionary<uint, CharacterObject> members = new Dictionary<uint, CharacterObject>();
 
+        private readonly Queue<CharacterObject> pendingAdd = new Queue<CharacterObject>();
+        private readonly Queue<CharacterObject> pendingRemove = new Queue<CharacterObject>();
+
+        public void Update(double lastTick)
+        {
+            while (pendingAdd.TryDequeue(out CharacterObject character))
+                OnAddMember(character);
+
+            while (pendingRemove.TryDequeue(out CharacterObject character))
+                OnRemoveMember(character);
+        }
+
+        /// <summary>
+        /// Returns whether the supplied <see cref="CharacterObject"/> is a member.
+        /// </summary>
         public bool HasMember(CharacterObject character)
         {
-            return members.Any(m => m == character);
+            return members.ContainsKey(character.Sequence);
         }
 
-        public virtual void AddMember(Session member)
+        /// <summary>
+        /// Enqueue <see cref="CharacterObject"/> to be added as a member.
+        /// </summary>
+        public void AddMember(CharacterObject character)
         {
-            if (HasMember(member.Character))
+            if (HasMember(character))
                 return;
 
-            members.Add(member.Character);
+            pendingAdd.Enqueue(character);
         }
 
-        public virtual void RemoveMember(Session member)
+        /// <summary>
+        /// Enqueue <see cref="CharacterObject"/> to be removed as a member.
+        /// </summary>
+        public void RemoveMember(CharacterObject character)
         {
-            if (!HasMember(member.Character))
+            if (!HasMember(character))
                 return;
 
-            members.Remove(member.Character);
+            pendingRemove.Enqueue(character);
         }
+
+        protected abstract void OnAddMember(CharacterObject character);
+        protected abstract void OnRemoveMember(CharacterObject character);
 
         /// <summary>
         /// Broadcast <see cref="IWritable"/> to all members.
         /// </summary>
         public void BroadcastMessage(IWritable message)
         {
-            foreach (CharacterObject character in members)
+            foreach (CharacterObject character in members.Values)
             {
                 Session session = NetworkManager.FindSessionByCharacter(character);
                 session?.EnqueueMessage(message);
@@ -48,7 +71,7 @@ namespace Pegasus.Social
         /// </summary>
         public void BroadcastMessage(IWritable message, Func<CharacterObject, bool> func)
         {
-            foreach (CharacterObject character in members)
+            foreach (CharacterObject character in members.Values)
             {
                 if (!func(character))
                     continue;
@@ -63,7 +86,7 @@ namespace Pegasus.Social
         /// </summary>
         public void BroadcastMessage(ObjectOpcode opcode, NetworkObject message)
         {
-            foreach (CharacterObject character in members)
+            foreach (CharacterObject character in members.Values)
             {
                 Session session = NetworkManager.FindSessionByCharacter(character);
                 session?.EnqueueMessage(opcode, message);
@@ -75,7 +98,7 @@ namespace Pegasus.Social
         /// </summary>
         public void BroadcastMessage(ObjectOpcode opcode, NetworkObject message, Func<CharacterObject, bool> func)
         {
-            foreach (CharacterObject character in members)
+            foreach (CharacterObject character in members.Values)
             {
                 if (!func(character))
                     continue;

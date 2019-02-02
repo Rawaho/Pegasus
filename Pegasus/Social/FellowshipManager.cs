@@ -6,6 +6,12 @@ namespace Pegasus.Social
     {
         private static readonly Dictionary<FellowshipObject, Fellowship> fellowships = new Dictionary<FellowshipObject, Fellowship>();
 
+        public static void Update(double lastTick)
+        {
+            foreach (Fellowship fellowship in fellowships.Values)
+                fellowship.Update(lastTick);
+        }
+
         /// <summary>
         /// Return <see cref="Fellowship"/> with supplied name, if fellowship doesn't exist it will be created.
         /// </summary>

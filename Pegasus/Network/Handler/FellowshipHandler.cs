@@ -17,13 +17,13 @@ namespace Pegasus.Network.Handler
                 case FellowshipAction.Join:
                 {
                     Fellowship fellowship = FellowshipManager.GetFellowship(fellowshipInfo);
-                    fellowship.AddMember(session);
+                    fellowship.AddMember(session.Character);
                     break;
                 }
                 case FellowshipAction.Leave:
                 {
                     Fellowship fellowship = FellowshipManager.GetFellowship(fellowshipInfo);
-                    fellowship?.RemoveMember(session);
+                    fellowship?.RemoveMember(session.Character);
                     break;
                 }
             }

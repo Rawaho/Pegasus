@@ -6,6 +6,7 @@ using NLog.Config;
 using Pegasus.Configuration;
 using Pegasus.Map;
 using Pegasus.Network;
+using Pegasus.Social;
 
 namespace Pegasus
 {
@@ -14,9 +15,9 @@ namespace Pegasus
         private const string DeployVersion = "0001";
 
         #if DEBUG
-            public const string Title = "Pegasus: Virindi Integrator Server (Debug)";
+        public const string Title = "Pegasus: Virindi Integrator Server (Debug)";
         #else
-            public const string Title = "Pegasus: Virindi Integrator Server (Release) - " + DeployVersion;
+        public const string Title = "Pegasus: Virindi Integrator Server (Release) - " + DeployVersion;
         #endif
 
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
@@ -37,9 +38,17 @@ namespace Pegasus
             {
                 ConfigManager.Initialise($"{Directory.GetCurrentDirectory()}\\Config.json");
                 PacketManager.Initialise();
-                WorldManager.Initialise();
                 DungeonTileManager.Initialise();
                 NetworkManager.Initialise();
+
+                WorldManager.Initialise(lastTick =>
+                {
+                    NetworkManager.Update(lastTick);
+                    FellowshipManager.Update(lastTick);
+                    ChannelManager.Update(lastTick);
+                });
+
+                log.Info("Ready!");
             }
             catch (Exception exception)
             {

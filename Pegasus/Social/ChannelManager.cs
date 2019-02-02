@@ -7,6 +7,12 @@ namespace Pegasus.Social
     {
         private static readonly Dictionary<string, Channel> channels = new Dictionary<string, Channel>(StringComparer.InvariantCultureIgnoreCase);
 
+        public static void Update(double lastTick)
+        {
+            foreach (Channel channel in channels.Values)
+                channel.Update(lastTick);
+        }
+
         /// <summary>
         /// Return <see cref="Channel"/> with supplied name, if channel doesn't exist it will be created.
         /// </summary>
