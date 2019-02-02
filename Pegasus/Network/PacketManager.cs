@@ -1,10 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using NLog;
-using Pegasus.Network.Packet;
+using Pegasus.Network.Packet.Object;
 using Pegasus.Network.Packet.Raw;
 using Pegasus.Network.Packet.Update;
 
@@ -14,59 +15,61 @@ namespace Pegasus.Network
     {
         private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
-        private delegate ClientRawPacket RawPacketFactory();
-        private static readonly Dictionary<ClientRawOpcode, RawPacketFactory> rawPacketFactories
-            = new Dictionary<ClientRawOpcode, RawPacketFactory>();
+        private delegate IReadable RawMessageFactory();
+        private static ImmutableDictionary<ClientRawOpcode, RawMessageFactory> rawMessageFactories;
+        private static ImmutableDictionary<Type, ServerRawOpcode> rawMessageOpcodes;
 
-        private delegate ClientUpdatePacket UpdatePacketFactory();
-        private static readonly Dictionary<UpdateType, UpdatePacketFactory> updatePacketFactories
-            = new Dictionary<UpdateType, UpdatePacketFactory>();
+        private delegate IReadable UpdateMessageFactory();
+        private static ImmutableDictionary<UpdateType, UpdateMessageFactory> updateMessageFactories;
+        private static ImmutableDictionary<Type, UpdateType> updateMessageTypes;
 
-        private delegate void ObjectPacketHandler(NetworkSession session, NetworkObject networkObject);
-        private delegate void RawPacketHandler(NetworkSession session, ClientRawPacket packet);
-        private delegate void UpdatePacketHandler(NetworkSession session, ClientUpdatePacket packet, UpdateParameters parameters);
+        private delegate void ObjectMessageHandler(NetworkSession session, NetworkObject networkObject);
+        private delegate void RawMessageHandler(NetworkSession session, IReadable packet);
+        private delegate void UpdateMessageHandler(NetworkSession session, IReadable packet, UpdateParameters parameters);
 
-        private static readonly Dictionary<ObjectOpcode, ObjectPacketHandler> objectPacketHandlers
-            = new Dictionary<ObjectOpcode, ObjectPacketHandler>();
-        private static readonly Dictionary<ClientRawOpcode, RawPacketHandler> rawPacketHandlers
-            = new Dictionary<ClientRawOpcode, RawPacketHandler>();
-        private static readonly Dictionary<UpdateType, UpdatePacketHandler> updatePacketHandlers
-            = new Dictionary<UpdateType, UpdatePacketHandler>();
+        private static ImmutableDictionary<ClientRawOpcode, RawMessageHandler> rawMessageHandlers;
+        private static ImmutableDictionary<ObjectOpcode, ObjectMessageHandler> objectMessageHandlers;
+        private static ImmutableDictionary<UpdateType, UpdateMessageHandler> updateMessageHandlers;
 
         public static void Initialise()
         {
-            InitialiseRawPacketFactories();
-            InitialiseUpdateacketFactories();
+            InitialiseRawMessages();
+            InitialiseUpdateMessages();
 
-            InitialiseRawPacketHandlers();
-            InitialiseObjectPacketHandlers();
-            InitialiseUpdatePacketHandlers();
+            InitialiseRawMessageHandlers();
+            InitialiseObjectMessageHandlers();
+            InitialiseUpdateMessageHandlers();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        private static void InitialiseRawPacketFactories()
+        private static void InitialiseRawMessages()
         {
+            var clientBuilder = ImmutableDictionary.CreateBuilder<ClientRawOpcode, RawMessageFactory>();
+            var serverBuilder = ImmutableDictionary.CreateBuilder<Type, ServerRawOpcode>();
+
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
             {
-                ClientRawPacketAttribute attribute = type.GetCustomAttribute<ClientRawPacketAttribute>();
-                if (attribute == null)
-                    continue;
+                ClientRawPacketAttribute clientAttribute = type.GetCustomAttribute<ClientRawPacketAttribute>();
+                if (clientAttribute != null)
+                {
+                    NewExpression @new = Expression.New(type);
+                    clientBuilder.Add(clientAttribute.Opcode, Expression.Lambda<RawMessageFactory>(@new).Compile());
+                }
 
-                NewExpression newFactory = Expression.New(type);
-                Expression<RawPacketFactory> lambda = Expression.Lambda<RawPacketFactory>(newFactory);
-
-                rawPacketFactories.Add(attribute.Opcode, lambda.Compile());
+                ServerRawMessageAttribute serverAttribute = type.GetCustomAttribute<ServerRawMessageAttribute>();
+                if (serverAttribute != null)
+                    serverBuilder.Add(type, serverAttribute.Opcode);
             }
+
+            rawMessageFactories = clientBuilder.ToImmutable();
+            rawMessageOpcodes   = serverBuilder.ToImmutable();
         }
 
         /// <summary>
-        /// 
+        /// Return a new <see cref="IReadable"/> for supplied <see cref="ClientRawOpcode"/>.
         /// </summary>
-        public static ClientRawPacket CreateRawPacket(ClientRawOpcode opcode)
+        public static IReadable CreateRawMessage(ClientRawOpcode opcode)
         {
-            if (!rawPacketFactories.TryGetValue(opcode, out RawPacketFactory factory))
+            if (!rawMessageFactories.TryGetValue(opcode, out RawMessageFactory factory))
             {
                 log.Warn($"Received unknown raw opcode 0x{opcode:X}!");
                 return null;
@@ -76,28 +79,42 @@ namespace Pegasus.Network
         }
 
         /// <summary>
-        /// 
+        /// Return <see cref="ServerRawOpcode"/> for supplied <see cref="IWritable"/>.
         /// </summary>
-        public static void InitialiseUpdateacketFactories()
+        public static bool GetRawOpcode(IWritable message, out ServerRawOpcode opcode)
         {
+            return rawMessageOpcodes.TryGetValue(message.GetType(), out opcode);
+        }
+
+        private static void InitialiseUpdateMessages()
+        {
+            var clientBuilder = ImmutableDictionary.CreateBuilder<UpdateType, UpdateMessageFactory>();
+            var serverBuilder = ImmutableDictionary.CreateBuilder<Type, UpdateType>();
+
             foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
             {
-                foreach (UpdatePacketAttribute attribute in type.GetCustomAttributes<UpdatePacketAttribute>())
+                foreach (UpdateMessageAttribute attribute in type.GetCustomAttributes<UpdateMessageAttribute>())
                 {
-                    NewExpression newFactory = Expression.New(type);
-                    Expression<UpdatePacketFactory> lambda = Expression.Lambda<UpdatePacketFactory>(newFactory);
-
-                    updatePacketFactories.Add(attribute.UpdateType, lambda.Compile());
+                    if (typeof(IReadable).IsAssignableFrom(type))
+                    {
+                        NewExpression @new = Expression.New(type);
+                        clientBuilder.Add(attribute.UpdateType, Expression.Lambda<UpdateMessageFactory>(@new).Compile());
+                    }
+                    if (typeof(IWritable).IsAssignableFrom(type))
+                        serverBuilder.Add(type, attribute.UpdateType);
                 }
             }
+
+            updateMessageFactories = clientBuilder.ToImmutable();
+            updateMessageTypes     = serverBuilder.ToImmutable();
         }
 
         /// <summary>
-        /// 
+        /// Return a new <see cref="IReadable"/> for supplied <see cref="UpdateType"/>.
         /// </summary>
-        public static ClientUpdatePacket CreateUpdatePacket(UpdateType type)
+        public static IReadable CreateUpdateMessage(UpdateType type)
         {
-            if (!updatePacketFactories.TryGetValue(type, out UpdatePacketFactory factory))
+            if (!updateMessageFactories.TryGetValue(type, out UpdateMessageFactory factory))
             {
                 log.Warn($"Received unknown update type 0x{type:X}!");
                 return null;
@@ -107,86 +124,98 @@ namespace Pegasus.Network
         }
 
         /// <summary>
-        /// 
+        /// Return <see cref="UpdateType"/> for supplied <see cref="IWritable"/>.
         /// </summary>
-        private static void InitialiseRawPacketHandlers()
+        public static bool GetUpdateType(IWritable message, out UpdateType updateType)
         {
-            foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
+            return updateMessageTypes.TryGetValue(message.GetType(), out updateType);
+        }
+
+        private static void InitialiseRawMessageHandlers()
+        {
+            var builder = ImmutableDictionary.CreateBuilder<ClientRawOpcode, RawMessageHandler>();
+
+            foreach (MethodInfo methodInfo in Assembly.GetExecutingAssembly()
+                .GetTypes()
+                .SelectMany(t => t.GetMethods()))
             {
-                foreach (MethodInfo methodInfo in type.GetMethods())
-                {
-                    RawPacketHandlerAttribute attribute = methodInfo.GetCustomAttribute<RawPacketHandlerAttribute>();
-                    if (attribute == null)
-                        continue;
+                RawMessageHandlerAttribute attribute = methodInfo.GetCustomAttribute<RawMessageHandlerAttribute>();
+                if (attribute == null)
+                    continue;
 
-                    ParameterInfo[] parameters = methodInfo.GetParameters();
+                ParameterInfo[] parameters = methodInfo.GetParameters();
 
-                    Debug.Assert(parameters.Length == 2);
-                    Debug.Assert(typeof(NetworkSession).IsAssignableFrom(parameters[0].ParameterType));
-                    Debug.Assert(typeof(ClientRawPacket).IsAssignableFrom(parameters[1].ParameterType));
+                #region Debug
+                Debug.Assert(parameters.Length == 2);
+                Debug.Assert(typeof(NetworkSession).IsAssignableFrom(parameters[0].ParameterType));
+                Debug.Assert(typeof(IReadable).IsAssignableFrom(parameters[1].ParameterType));
+                #endregion
 
-                    ParameterExpression sessionParameter = Expression.Parameter(typeof(NetworkSession));
-                    ParameterExpression packetParameter = Expression.Parameter(typeof(ClientRawPacket));
+                ParameterExpression sessionParameter = Expression.Parameter(typeof(NetworkSession));
+                ParameterExpression messageParameter = Expression.Parameter(typeof(IReadable));
 
-                    MethodCallExpression methodCall = Expression.Call(methodInfo,
-                        Expression.Convert(sessionParameter, parameters[0].ParameterType),
-                        Expression.Convert(packetParameter, parameters[1].ParameterType));
-                    Expression<RawPacketHandler> lambda = Expression.Lambda<RawPacketHandler>(methodCall, sessionParameter, packetParameter);
+                MethodCallExpression methodCall = Expression.Call(methodInfo,
+                    Expression.Convert(sessionParameter, parameters[0].ParameterType),
+                    Expression.Convert(messageParameter, parameters[1].ParameterType));
+                Expression<RawMessageHandler> lambda = Expression.Lambda<RawMessageHandler>(methodCall, sessionParameter, messageParameter);
 
-                    rawPacketHandlers.Add(attribute.Opcode, lambda.Compile());
-                }
+                builder.Add(attribute.Opcode, lambda.Compile());
             }
+
+            rawMessageHandlers = builder.ToImmutable();
         }
 
         /// <summary>
-        /// 
+        /// Invoke message handler delegate for supplied <see cref="ClientRawOpcode"/>.
         /// </summary>
-        public static void InvokeRawPacketHandler(NetworkSession session, ClientRawOpcode opcode, ClientRawPacket packet)
+        public static void InvokeRawMessageHandler(NetworkSession session, ClientRawOpcode opcode, IReadable message)
         {
-            if (!rawPacketHandlers.TryGetValue(opcode, out RawPacketHandler handler))
+            if (!rawMessageHandlers.TryGetValue(opcode, out RawMessageHandler handler))
             {
                 log.Warn($"Received unhandled raw opcode 0x{opcode:X}!");
                 return;
             }
 
-            handler.Invoke(session, packet);
+            handler.Invoke(session, message);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        private static void InitialiseObjectPacketHandlers()
+        private static void InitialiseObjectMessageHandlers()
         {
-            foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
+            var builder = ImmutableDictionary.CreateBuilder<ObjectOpcode, ObjectMessageHandler>();
+
+            foreach (MethodInfo methodInfo in Assembly.GetExecutingAssembly()
+                .GetTypes()
+                .SelectMany(t => t.GetMethods()))
             {
-                foreach (MethodInfo methodInfo in type.GetMethods())
-                {
-                    ObjectPacketHandlerAttribute attribute = methodInfo.GetCustomAttribute<ObjectPacketHandlerAttribute>();
-                    if (attribute == null)
-                        continue;
+                ObjectPacketHandlerAttribute attribute = methodInfo.GetCustomAttribute<ObjectPacketHandlerAttribute>();
+                if (attribute == null)
+                    continue;
 
-                    ParameterInfo[] parameters = methodInfo.GetParameters();
+                ParameterInfo[] parameters = methodInfo.GetParameters();
 
-                    Debug.Assert(parameters.Length == 2);
-                    Debug.Assert(typeof(NetworkSession).IsAssignableFrom(parameters[0].ParameterType));
+                #region Debug
+                Debug.Assert(parameters.Length == 2);
+                Debug.Assert(typeof(NetworkSession).IsAssignableFrom(parameters[0].ParameterType));
+                #endregion
 
-                    ParameterExpression sessionParameter = Expression.Parameter(typeof(NetworkSession));
-                    ParameterExpression objectParameter = Expression.Parameter(typeof(NetworkObject));
+                ParameterExpression sessionParameter = Expression.Parameter(typeof(NetworkSession));
+                ParameterExpression messageParameter = Expression.Parameter(typeof(NetworkObject));
 
-                    MethodCallExpression methodCall = Expression.Call(methodInfo, Expression.Convert(sessionParameter, parameters[0].ParameterType), objectParameter);
-                    Expression<ObjectPacketHandler> lambda = Expression.Lambda<ObjectPacketHandler>(methodCall, sessionParameter, objectParameter);
+                MethodCallExpression methodCall = Expression.Call(methodInfo, Expression.Convert(sessionParameter, parameters[0].ParameterType), messageParameter);
+                Expression<ObjectMessageHandler> lambda = Expression.Lambda<ObjectMessageHandler>(methodCall, sessionParameter, messageParameter);
 
-                    objectPacketHandlers.Add(attribute.Opcode, lambda.Compile());
-                }
+                builder.Add(attribute.Opcode, lambda.Compile());
             }
+
+            objectMessageHandlers = builder.ToImmutable();
         }
 
         /// <summary>
-        /// 
+        /// Invoke message handler delegate for supplied <see cref="ObjectOpcode"/>.
         /// </summary>
-        public static void InvokeObjectPacketHandler(NetworkSession session, ObjectOpcode opcode, NetworkObject networkObject)
+        public static void InvokeObjectMessageHandler(NetworkSession session, ObjectOpcode opcode, NetworkObject networkObject)
         {
-            if (!objectPacketHandlers.TryGetValue(opcode, out ObjectPacketHandler handler))
+            if (!objectMessageHandlers.TryGetValue(opcode, out ObjectMessageHandler handler))
             {
                 log.Warn($"Received unhandled object opcode 0x{opcode:X}!");
                 return;
@@ -195,45 +224,46 @@ namespace Pegasus.Network
             handler.Invoke(session, networkObject);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public static void InitialiseUpdatePacketHandlers()
+        private static void InitialiseUpdateMessageHandlers()
         {
-            foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
-            {
-                foreach (MethodInfo methodInfo in type.GetMethods())
-                {
-                    UpdatePacketHandlerAttribute attribute = methodInfo.GetCustomAttribute<UpdatePacketHandlerAttribute>();
-                    if (attribute == null)
-                        continue;
+            var builder = ImmutableDictionary.CreateBuilder<UpdateType, UpdateMessageHandler>();
 
+            foreach (MethodInfo methodInfo in Assembly.GetExecutingAssembly()
+                .GetTypes()
+                .SelectMany(t => t.GetMethods()))
+            {
+                foreach (UpdateMessageHandlerAttribute attribute in methodInfo.GetCustomAttributes<UpdateMessageHandlerAttribute>())
+                {
                     ParameterInfo[] parameters = methodInfo.GetParameters();
 
+                    #region Debug
                     Debug.Assert(parameters.Length == 3);
                     Debug.Assert(typeof(NetworkSession).IsAssignableFrom(parameters[0].ParameterType));
-                    Debug.Assert(typeof(ClientUpdatePacket).IsAssignableFrom(parameters[1].ParameterType));
+                    Debug.Assert(typeof(IReadable).IsAssignableFrom(parameters[1].ParameterType));
                     Debug.Assert(parameters[2].ParameterType == typeof(UpdateParameters));
+                    #endregion
 
                     ParameterExpression sessionParameter = Expression.Parameter(typeof(NetworkSession));
-                    ParameterExpression packetParameter  = Expression.Parameter(typeof(ClientUpdatePacket));
-                    ParameterExpression parmsParameter   = Expression.Parameter(typeof(UpdateParameters));
+                    ParameterExpression messageParameter = Expression.Parameter(typeof(IReadable));
+                    ParameterExpression parmsParameter = Expression.Parameter(typeof(UpdateParameters));
 
                     MethodCallExpression methodCall = Expression.Call(methodInfo,
-                        Expression.Convert(sessionParameter, parameters[0].ParameterType), Expression.Convert(packetParameter, parameters[1].ParameterType), parmsParameter);
-                    Expression<UpdatePacketHandler> lambda = Expression.Lambda<UpdatePacketHandler>(methodCall, sessionParameter, packetParameter, parmsParameter);
+                        Expression.Convert(sessionParameter, parameters[0].ParameterType), Expression.Convert(messageParameter, parameters[1].ParameterType), parmsParameter);
+                    Expression<UpdateMessageHandler> lambda = Expression.Lambda<UpdateMessageHandler>(methodCall, sessionParameter, messageParameter, parmsParameter);
 
-                    updatePacketHandlers.Add(attribute.UpdateType, lambda.Compile());
+                    builder.Add(attribute.UpdateType, lambda.Compile());
                 }
             }
+
+            updateMessageHandlers = builder.ToImmutable();
         }
 
         /// <summary>
-        /// 
+        /// Invoke message handler delegate for supplied <see cref="UpdateType"/>.
         /// </summary>
-        public static void InvokeUpdatePacketHandler(NetworkSession session, UpdateType updateType, ClientUpdatePacket packet, UpdateParameters parameters)
+        public static void InvokeUpdatePacketHandler(NetworkSession session, UpdateType updateType, IReadable packet, UpdateParameters parameters)
         {
-            if (!updatePacketHandlers.TryGetValue(updateType, out UpdatePacketHandler handler))
+            if (!updateMessageHandlers.TryGetValue(updateType, out UpdateMessageHandler handler))
             {
                 log.Warn($"Received unhandled update type 0x{updateType:X}!");
                 return;

@@ -30,7 +30,7 @@ namespace Pegasus.Network
             State = SessionState.SignedIn;
 
             FriendManager.Initialise(this);
-            CharacterUpdateManager.SignIn(characterObject);
+            CharacterUpdateManager.Register(characterObject);
         }
 
         public override void Disconnect()
@@ -38,7 +38,7 @@ namespace Pegasus.Network
             FriendManager.Disconnect();
 
             if (Character != null)
-                CharacterUpdateManager.SignOut(Character);
+                CharacterUpdateManager.Deregister(Character);
 
             Channels.ToList().ForEach(c => c.RemoveMember(this));
             Channels.Clear();

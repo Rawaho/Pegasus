@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using Pegasus.Network;
 
 namespace Pegasus.Cryptography
 {

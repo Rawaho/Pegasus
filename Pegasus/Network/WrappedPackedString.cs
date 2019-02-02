@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text;
+using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Network
 {

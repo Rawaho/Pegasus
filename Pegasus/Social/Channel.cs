@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
-using Pegasus.Database;
 using Pegasus.Network;
-using Pegasus.Network.Packet;
+using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Social
 {
@@ -31,7 +30,7 @@ namespace Pegasus.Social
             channelJoin.AddField(0, NetworkObjectField.CreateIntField((int)ServerChannelAction.Join));
             channelJoin.AddField(1, NetworkObjectField.CreateStringField(name));
             channelJoin.AddField(2, NetworkObjectField.CreateStringField(GetShortcut()));
-            member.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.Channel, channelJoin, false));
+            member.EnqueueMessage(ObjectOpcode.Channel, channelJoin);
         }
 
         /// <summary>
@@ -46,7 +45,7 @@ namespace Pegasus.Social
             channelLeave.AddField(0, NetworkObjectField.CreateIntField((int)ServerChannelAction.Leave));
             channelLeave.AddField(1, NetworkObjectField.CreateStringField(name));
             channelLeave.AddField(2, NetworkObjectField.CreateStringField(GetShortcut()));
-            member.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.Channel, channelLeave, false));
+            member.EnqueueMessage(ObjectOpcode.Channel, channelLeave);
         }
 
         /// <summary>
@@ -63,7 +62,7 @@ namespace Pegasus.Social
             channelMessage.AddField(2, NetworkObjectField.CreateStringField(name));
             channelMessage.AddField(3, NetworkObjectField.CreateStringField(message));
             channelMessage.AddField(4, NetworkObjectField.CreateStringField(GetShortcut()));
-            BroadcastMessage(new ServerObjectPacket(ObjectOpcode.Channel, channelMessage, false));
+            BroadcastMessage(ObjectOpcode.Channel, channelMessage);
         }
     }
 }

@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using NLog;
 using Pegasus.Cryptography;
 using Pegasus.Network.Packet;
+using Pegasus.Network.Packet.Object;
 using Pegasus.Network.Packet.Raw;
 
 namespace Pegasus.Network
@@ -25,20 +26,52 @@ namespace Pegasus.Network
 
         private readonly PacketEncryptor encryptor = new PacketEncryptor();
         private readonly PacketDecryptor decryptor = new PacketDecryptor();
-        private readonly ConcurrentQueue<ClientPacket> incomingPackets = new ConcurrentQueue<ClientPacket>();
+        private readonly ConcurrentQueue<BasePacket> incomingPackets = new ConcurrentQueue<BasePacket>();
         private readonly Queue<ServerPacket> outgoingPackets = new Queue<ServerPacket>();
 
         // current packet being processed
-        private ClientPacket currentPacket;
+        private FragmentedBuffer onDeck;
 
-        private double timeSinceLastPing = 0d;
+        private double timeSinceLastPing;
 
         /// <summary>
-        /// Enqueue <see cref="ServerPacket"/> to be sent to client.
+        /// Enqueue <see cref="IWritable"/> to be sent to the client.
         /// </summary>
-        public void EnqueuePacket(ServerPacket serverPacket)
+        public void EnqueueMessage(IWritable message)
         {
-            outgoingPackets.Enqueue(serverPacket);
+            if (!PacketManager.GetRawOpcode(message, out ServerRawOpcode opcode))
+            {
+                log.Warn("Failed to send raw packet with no attribute!");
+                return;
+            }
+
+            var packet = new ServerPacket(opcode, message);
+            outgoingPackets.Enqueue(packet);
+
+            log.Trace($"Sent raw packet {opcode}(0x{opcode:X}).");
+        }
+
+        /// <summary>
+        /// Enqueue <see cref="NetworkObject"/> to be sent to the client.
+        /// </summary>
+        public void EnqueueMessage(ObjectOpcode opcode, NetworkObject message)
+        {
+            var packet = new NetworkObject();
+            packet.AddField(0, NetworkObjectField.CreateIntField((int)opcode));
+            packet.AddField(1, NetworkObjectField.CreateObjectField(message));
+            EnqueueMessage(packet);
+        }
+
+        /// <summary>
+        /// Enqueue <see cref="NetworkObject"/> to be sent to the client.
+        /// </summary>
+        public void EnqueueMessage(NetworkObject message)
+        {
+            var packet = new ServerPacket(message);
+            outgoingPackets.Enqueue(packet);
+
+            ObjectOpcode opcode = (ObjectOpcode)NetworkObjectField.ReadIntField(message.GetField(0));
+            log.Trace($"Sent object packet {opcode}(0x{opcode:X}).");
         }
 
         public void Accept(Socket newSocket)
@@ -56,9 +89,9 @@ namespace Pegasus.Network
             {
                 Disconnect();
             }
-            catch (Exception exception)
+            catch (Exception e)
             {
-                log.Error(exception);
+                log.Error(e);
             }
         }
 
@@ -73,20 +106,19 @@ namespace Pegasus.Network
                     return;
                 }
 
-                byte[] messageBuffer = new byte[length];
-                Buffer.BlockCopy(buffer, 0, messageBuffer, 0, length);
+                byte[] data = new byte[length];
+                Buffer.BlockCopy(buffer, 0, data, 0, length);
 
-                ProcessPayload(messageBuffer);
+                ProcessPayload(data);
                 BeginReceive();
             }
             catch (SocketException)
             {
                 Disconnect();
             }
-            catch (Exception exception)
+            catch (Exception e)
             {
-                log.Error(exception);
-                BeginReceive();
+                log.Error(e);
             }
         }
 
@@ -97,86 +129,76 @@ namespace Pegasus.Network
             incomingPackets.Clear();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        private void ProcessPayload(byte[] payload)
+        private void ProcessPayload(byte[] data)
         {
-            for (int payloadOffset = 0; payloadOffset < payload.Length; )
+            using (var stream = new MemoryStream(data))
+            using (var reader = new BinaryReader(stream))
             {
-                if (currentPacket == null)
+                while (stream.Remaining() != 0L)
                 {
-                    if (payload.Length - payloadOffset < 4)
-                        throw new InvalidDataException();
+                    // no packet on deck waiting for additional information, new data will be part of a new packet
+                    if (onDeck == null)
+                    {
+                        uint size = reader.ReadUInt32();
+                        onDeck = new FragmentedBuffer(size);
+                    }
 
-                    currentPacket = new ClientPacket(BitConverter.ToInt32(payload, payloadOffset) + sizeof(int));
-                } 
-                    
-                int payloadLength = Math.Min(currentPacket.Remaining, payload.Length - payloadOffset);
-                currentPacket.AddFragment(payload, payloadOffset, payloadLength);
-                payloadOffset += payloadLength;
+                    onDeck.Populate(reader);
+                    if (onDeck.IsComplete)
+                    {
+                        BasePacket packet;
+                        if (receivedFirstPacket)
+                            packet = new ClientPacket(onDeck.Data);
+                        else
+                        {
+                            // first packet doesn't follow the standard structure
+                            packet = new ClientFirstPacket(onDeck.Data);
+                            receivedFirstPacket = true;
+                        }
 
-                // enqueue packet for handling if all fragments are accounted for
-                if (!currentPacket.IsFragmented)
-                {
-                    incomingPackets.Enqueue(currentPacket);
-                    currentPacket = null;
+                        incomingPackets.Enqueue(packet);
+                        onDeck = null;
+                    }
                 }
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        private void ProcessPacket(byte[] payload)
+        private void ProcessPacket(BasePacket packet)
         {
             // first packet doesn't follow the standard structure
-            if (!receivedFirstPacket)
+            if (packet is ClientFirstPacket)
             {
-                ProcessFirstPacket(payload);
+                ProcessFirstPacket(packet);
                 return;
             }
 
-            if (payload.Length == sizeof(int))
+            if (packet.Size == 0u)
             {
                 ProcessPingPacket();
                 return;
             }
 
-            using (var stream = new MemoryStream(payload))
-            {
-                using (var reader = new BinaryReader(stream))
-                {
-                    reader.ReadUInt32();
-                    PacketFlag flags = (PacketFlag)reader.ReadPackedUInt32();
+            byte[] payload = packet.Data;
+            if ((packet.Flags & PacketFlag.Encrypted) != 0)
+                payload = decryptor.Decrypt(payload);
 
-                    byte[] packetPayload;
-                    if ((flags & PacketFlag.Encrypted) != 0)
-                        packetPayload = decryptor.Decrypt(payload);
-                    else
-                        packetPayload = reader.ReadBytes((int)(stream.Length - stream.Position));
-
-                    if ((flags & PacketFlag.Raw) != 0)
-                        ProcessRawPacket(packetPayload);
-                    else
-                        ProcessObjectPacket(packetPayload);
-                }
-            }
+            if ((packet.Flags & PacketFlag.Raw) != 0)
+                ProcessRawPacket(payload);
+            else
+                ProcessObjectPacket(payload);
         }
 
-        private void ProcessFirstPacket(byte[] payload)
+        private void ProcessFirstPacket(BasePacket packet)
         {
-            if (payload.Length != 8)
+            if (packet.Size != 4u)
                 throw new InvalidDataException();
 
             byte[] check = new byte[4];
-            Buffer.BlockCopy(payload, 4, check, 0, check.Length);
+            Buffer.BlockCopy(packet.Data, 0, check, 0, check.Length);
 
             // client sends a static payload encrypted
-            if (!decryptor.Decrypt(check).SequenceEqual(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0x00 }))
+            if (!decryptor.Decrypt(check).SequenceEqual(new byte[] {0xFF, 0xFF, 0xFF, 0xFF, 0x00}))
                 throw new InvalidDataException();
-
-            receivedFirstPacket = true;
         }
 
         private void ProcessPingPacket()
@@ -184,67 +206,50 @@ namespace Pegasus.Network
             timeSinceLastPing = 0d;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         private void ProcessRawPacket(byte[] payload)
         {
             using (var stream = new MemoryStream(payload))
+            using (var reader = new BinaryReader(stream))
             {
-                using (var reader = new BinaryReader(stream))
-                {
-                    ClientRawOpcode opcode = (ClientRawOpcode)reader.ReadPackedUInt32();
+                ClientRawOpcode opcode = (ClientRawOpcode)reader.ReadPackedUInt32();
 
-                    ClientRawPacket packet = PacketManager.CreateRawPacket(opcode);
-                    if (packet != null)
-                    {
-                        packet.Read(reader);
-                        PacketManager.InvokeRawPacketHandler(this, opcode, packet);
-                    }
-                }
+                IReadable packet = PacketManager.CreateRawMessage(opcode);
+                if (packet == null)
+                    return;
+
+                log.Trace($"Received raw packet {opcode}(0x{opcode:X}).");
+
+                packet.Read(reader);
+                if (stream.Remaining() > 0)
+                    log.Warn($"Failed to read entire contents of packet {opcode}(0x{opcode:X}).");
+
+                PacketManager.InvokeRawMessageHandler(this, opcode, packet);
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         private void ProcessObjectPacket(byte[] payload)
         {
-            try
-            {
-                NetworkObject networkObject = NetworkObject.UnPack(payload);
+            NetworkObject networkObject = NetworkObject.UnPack(payload);
 
-                ObjectOpcode opcode = (ObjectOpcode)NetworkObjectField.ReadIntField(networkObject.GetField(0));
-                if (opcode == ObjectOpcode.Authenticate)
-                {
-                    PacketManager.InvokeObjectPacketHandler(this, opcode, networkObject);
-                }
-                else
-                {
-                    PacketManager.InvokeObjectPacketHandler(this, opcode, networkObject.GetField(1).ReadObject());
-                }
-            }
-            catch (OutOfMemoryException exception)
-            {
-                log.Fatal(exception);
-                log.Fatal($"Payload Length: {payload.Length}");
-                throw;
-            }
+            ObjectOpcode opcode = (ObjectOpcode)NetworkObjectField.ReadIntField(networkObject.GetField(0));
+            log.Trace($"Received object packet {opcode}(0x{opcode:X}).");
+
+            if (opcode == ObjectOpcode.Authenticate)
+                PacketManager.InvokeObjectMessageHandler(this, opcode, networkObject);
+            else
+                PacketManager.InvokeObjectMessageHandler(this, opcode, networkObject.GetField(1).ReadObject());
         }
 
-        private void FlushOutgoingPackets()
+        private void FlushPacket(ServerPacket serverPacket)
         {
-            try
+            using (var stream = new MemoryStream())
+            using (var writer = new BinaryWriter(stream))
             {
-                while (outgoingPackets.Count > 0)
-                {
-                    ServerPacket outgoingPacket = outgoingPackets.Dequeue();
-                    socket.Send(outgoingPacket.Construct(encryptor));
-                }
-            }
-            catch (Exception)
-            {
-                Disconnect();
+                writer.Write(serverPacket.Size);
+                writer.WritePackedUInt32((uint)serverPacket.Flags);
+                writer.Write(serverPacket.Data);
+
+                socket.Send(stream.ToArray());
             }
         }
 
@@ -257,21 +262,34 @@ namespace Pegasus.Network
                 return;
             }
 
-            while (!incomingPackets.IsEmpty)
+            while (incomingPackets.TryDequeue(out BasePacket packet))
             {
-                incomingPackets.TryDequeue(out ClientPacket incomingPacket);
-
                 try
                 {
-                    ProcessPacket(incomingPacket.GetData());
+                    ProcessPacket(packet);
                 }
-                catch (Exception exception)
+                catch (Exception e)
                 {
-                    log.Error(exception);
-                }   
+                    log.Error(e);
+                    Disconnect();
+                }
             }
 
-            FlushOutgoingPackets();
+            while (outgoingPackets.TryDequeue(out ServerPacket packet))
+            {
+                try
+                {
+                    FlushPacket(packet);
+                }
+                catch (SocketException)
+                {
+                    Disconnect();
+                }
+                catch (Exception e)
+                {
+                    log.Error(e);
+                }
+            }
         }
     }
 }

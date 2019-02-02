@@ -2,7 +2,7 @@
 using Pegasus.Cryptography;
 using Pegasus.Database;
 using Pegasus.Database.Model;
-using Pegasus.Network.Packet;
+using Pegasus.Network.Packet.Object;
 using Pegasus.Social;
 
 namespace Pegasus.Network.Handler
@@ -18,11 +18,7 @@ namespace Pegasus.Network.Handler
             {
                 var errorCode = new NetworkObject();
                 errorCode.AddField(0, NetworkObjectField.CreateIntField(code));
-
-                var authenticationError = new NetworkObject();
-                authenticationError.AddField(0, NetworkObjectField.CreateIntField((int)ObjectOpcode.AuthenticateError));
-                authenticationError.AddField(1, NetworkObjectField.CreateObjectField(errorCode));
-                session.EnqueuePacket(new ServerAuthenticationPacket(authenticationError));
+                session.EnqueueMessage(ObjectOpcode.AuthenticateError, errorCode);
             }
 
             string username    = NetworkObjectField.ReadStringField(networkObject.GetField(2));
@@ -33,6 +29,7 @@ namespace Pegasus.Network.Handler
             CharacterObject characterObject = new CharacterObject();
             characterObject.FromNetworkObject(networkObject.GetField(4).ReadObject());
 
+            // anonymous login ignored
             if (string.IsNullOrWhiteSpace(username)
                 || username.Length > 20
                 || username == "Anonymous")
@@ -41,7 +38,6 @@ namespace Pegasus.Network.Handler
                 return;
             }
 
-            // anonymous login ignored
             if (version != "1.0.1.14")
             {
                 SendAuthenticationError(1);
@@ -67,8 +63,8 @@ namespace Pegasus.Network.Handler
 
             var authentication = new NetworkObject();
             authentication.AddField(0, NetworkObjectField.CreateIntField((int)ObjectOpcode.Authenticate));
-            authentication.AddField(1, NetworkObjectField.CreateIntField((int)accountInfo.Privileges));
-            session.EnqueuePacket(new ServerAuthenticationPacket(authentication));
+            authentication.AddField(1, NetworkObjectField.CreateIntField(accountInfo.Privileges));
+            session.EnqueueMessage(authentication);
 
             characterObject.Sequence = NetworkManager.SessionSequence.Dequeue();
             session.SignIn(accountInfo, accountName, characterObject);

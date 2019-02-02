@@ -1,5 +1,5 @@
 ﻿using System;
-using Pegasus.Network;
+using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Social
 {

@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace Pegasus.Network
 {
@@ -48,6 +49,14 @@ namespace Pegasus.Network
             var structure = new WrappedStruct<T>();
             structure.Read(reader);
             return structure.Value;
+        }
+
+        public static long Remaining(this Stream stream)
+        {
+            if (stream.Length < stream.Position)
+                throw new InvalidOperationException();
+
+            return stream.Length - stream.Position;
         }
     }
 }

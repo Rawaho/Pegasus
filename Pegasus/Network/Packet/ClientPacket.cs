@@ -1,32 +1,21 @@
-﻿using System;
+﻿using System.IO;
 
 namespace Pegasus.Network.Packet
 {
-    public class ClientPacket
+    public class ClientPacket : BasePacket
     {
-        public bool IsFragmented => data.Length != offset;
-        public int Remaining => data.Length - offset;
-
-        private int offset;
-        private readonly byte[] data;
-
-        public ClientPacket(int length)
+        public ClientPacket(byte[] data)
         {
-            data = new byte[length];
-        }
-
-        public void AddFragment(byte[] payload, int payloadOffset, int payloadLength)
-        {
-            if (payloadLength == 0)
+            Size = (uint)data.Length;
+            if (Size == 0u)
                 return;
 
-            Buffer.BlockCopy(payload, payloadOffset, data, offset, payloadLength);
-            offset += payloadLength;
-        }
-
-        public byte[] GetData()
-        {
-            return data;
+            using (var stream = new MemoryStream(data))
+            using (var reader = new BinaryReader(stream))
+            {
+                Flags = (PacketFlag)reader.ReadPackedUInt32();
+                Data  = reader.ReadBytes((int)stream.Remaining());
+            }
         }
     }
 }

@@ -19,10 +19,5 @@ namespace Pegasus.Social
 
             return fellowship;
         }
-
-
-
-
-
     }
 }

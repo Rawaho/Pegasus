@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Pegasus.Network;
-using Pegasus.Network.Packet;
+using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Social
 {
@@ -14,9 +15,6 @@ namespace Pegasus.Social
             return members.Any(m => m == character);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public virtual void AddMember(Session member)
         {
             if (HasMember(member.Character))
@@ -25,9 +23,6 @@ namespace Pegasus.Social
             members.Add(member.Character);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public virtual void RemoveMember(Session member)
         {
             if (!HasMember(member.Character))
@@ -37,32 +32,56 @@ namespace Pegasus.Social
         }
 
         /// <summary>
-        /// 
+        /// Broadcast <see cref="IWritable"/> to all members.
         /// </summary>
-        public void BroadcastMessage(ServerPacket packet, CharacterObject exclude = null)
+        public void BroadcastMessage(IWritable message)
         {
             foreach (CharacterObject character in members)
             {
-                if (exclude != null && character == exclude)
-                    continue;
-
                 Session session = NetworkManager.FindSessionByCharacter(character);
-                session.EnqueuePacket(packet);
+                session?.EnqueueMessage(message);
             }
         }
 
         /// <summary>
-        /// 
+        /// Broadcast <see cref="IWritable"/> to all members that satisfy supplied predicate.
         /// </summary>
-        public void BroadcastMessage(ServerPacket packet, uint sequence)
+        public void BroadcastMessage(IWritable message, Func<CharacterObject, bool> func)
         {
             foreach (CharacterObject character in members)
             {
-                if (character.Sequence != sequence)
+                if (!func(character))
                     continue;
 
                 Session session = NetworkManager.FindSessionByCharacter(character);
-                session.EnqueuePacket(packet);
+                session?.EnqueueMessage(message);
+            }
+        }
+
+        /// <summary>
+        /// Broadcast <see cref="NetworkObject"/> to all members.
+        /// </summary>
+        public void BroadcastMessage(ObjectOpcode opcode, NetworkObject message)
+        {
+            foreach (CharacterObject character in members)
+            {
+                Session session = NetworkManager.FindSessionByCharacter(character);
+                session?.EnqueueMessage(opcode, message);
+            }
+        }
+
+        /// <summary>
+        /// Broadcast <see cref="NetworkObject"/> to all members that satisfy supplied predicate.
+        /// </summary>
+        public void BroadcastMessage(ObjectOpcode opcode, NetworkObject message, Func<CharacterObject, bool> func)
+        {
+            foreach (CharacterObject character in members)
+            {
+                if (!func(character))
+                    continue;
+
+                Session session = NetworkManager.FindSessionByCharacter(character);
+                session?.EnqueueMessage(opcode, message);
             }
         }
     }

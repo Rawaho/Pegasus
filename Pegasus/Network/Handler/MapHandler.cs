@@ -1,6 +1,7 @@
 ﻿using Pegasus.Map;
-using Pegasus.Network.Packet;
+using Pegasus.Network.Packet.Object;
 using Pegasus.Network.Packet.Raw;
+using Pegasus.Network.Packet.Raw.Model;
 
 namespace Pegasus.Network.Handler
 {
@@ -10,8 +11,6 @@ namespace Pegasus.Network.Handler
         public static void Handle0C(Session session, NetworkObject networkObject)
         {
             int action = NetworkObjectField.ReadIntField(networkObject.GetField(0));
-            //Console.WriteLine($"Action: {action}");
-
             switch (action)
             {
                 case 7:
@@ -26,7 +25,7 @@ namespace Pegasus.Network.Handler
             }
         }
 
-        [RawPacketHandler(ClientRawOpcode.DungeonList)]
+        [RawMessageHandler(ClientRawOpcode.DungeonList)]
         public static void HandleDungeonList(Session session, ClientDungeonList packet)
         {
             var dungeonList = new ServerDungeonList
@@ -37,10 +36,10 @@ namespace Pegasus.Network.Handler
             foreach (DungeonInfo dungeonInfo in DungeonTileManager.GetDungeonInfo(packet.SearchParameter))
                 dungeonList.Dungeons.Add(new ServerDungeonList.Dungeon(dungeonInfo));
 
-            session.EnqueuePacket(dungeonList);
+            session.EnqueueMessage(dungeonList);
         }
 
-        [RawPacketHandler(ClientRawOpcode.DungeonTiles)]
+        [RawMessageHandler(ClientRawOpcode.DungeonTiles)]
         public static void HandleDungeonTile(Session session, ClientDungeonTiles packet)
         {
             foreach (uint cellId in packet.CellIds)
@@ -64,7 +63,7 @@ namespace Pegasus.Network.Handler
                     });
                 }
 
-                session.EnqueuePacket(dungeonTiles);
+                session.EnqueueMessage(dungeonTiles);
             }
         }
     }

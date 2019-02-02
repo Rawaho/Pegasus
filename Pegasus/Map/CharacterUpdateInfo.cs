@@ -15,5 +15,6 @@ namespace Pegasus.Map
         public Vital Health { get; set; }
         public Vital Stamina { get; set; }
         public Vital Mana { get; set; }
+        public uint Target { get; set; }
     }
 }

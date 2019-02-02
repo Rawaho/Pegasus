@@ -1,4 +1,4 @@
-﻿using Pegasus.Network.Packet;
+﻿using Pegasus.Network.Packet.Object;
 using Pegasus.Social;
 
 namespace Pegasus.Network.Handler

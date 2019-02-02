@@ -2,6 +2,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Network.Packet.Update.Structure
 {

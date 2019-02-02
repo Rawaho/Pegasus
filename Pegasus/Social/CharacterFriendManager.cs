@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Pegasus.Database;
 using Pegasus.Database.Model;
 using Pegasus.Network;
-using Pegasus.Network.Packet;
+using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Social
 {
@@ -70,7 +70,7 @@ namespace Pegasus.Social
                 characterAdd.AddField(1, NetworkObjectField.CreateStringField(account));
                 characterAdd.AddField(2, NetworkObjectField.CreateBoolField(true));
                 characterAdd.AddField(3, NetworkObjectField.CreateObjectField(session.Character.ToNetworkObject()));
-                owner.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.FriendList, characterAdd, false));
+                owner.EnqueueMessage(ObjectOpcode.FriendList, characterAdd);
             }
 
             if (friendList[account].Count == 0)
@@ -79,7 +79,7 @@ namespace Pegasus.Social
                 accountAdd.AddField(0, NetworkObjectField.CreateIntField((int)ServerFriendAction.Add));
                 accountAdd.AddField(1, NetworkObjectField.CreateStringField(account));
                 accountAdd.AddField(2, NetworkObjectField.CreateBoolField(false));
-                owner.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.FriendList, accountAdd, false));
+                owner.EnqueueMessage(ObjectOpcode.FriendList, accountAdd);
             }
         }
 
@@ -97,7 +97,7 @@ namespace Pegasus.Social
             characterSignIn.AddField(0, NetworkObjectField.CreateIntField((int)ServerFriendAction.SignIn));
             characterSignIn.AddField(1, NetworkObjectField.CreateStringField(account));
             characterSignIn.AddField(2, NetworkObjectField.CreateObjectField(character.ToNetworkObject()));
-            owner.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.FriendList, characterSignIn, false));
+            owner.EnqueueMessage(ObjectOpcode.FriendList, characterSignIn);
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Pegasus.Social
             NetworkObject networkObject = new NetworkObject();
             networkObject.AddField(0, NetworkObjectField.CreateIntField((int)ServerFriendAction.Remove));
             networkObject.AddField(1, NetworkObjectField.CreateStringField(account));
-            owner.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.FriendList, networkObject, false));
+            owner.EnqueueMessage(ObjectOpcode.FriendList, networkObject);
         }
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace Pegasus.Social
             characterSignOut.AddField(0, NetworkObjectField.CreateIntField((int)ServerFriendAction.SignOut));
             characterSignOut.AddField(1, NetworkObjectField.CreateStringField(account));
             characterSignOut.AddField(2, NetworkObjectField.CreateObjectField(character.ToNetworkObject()));
-            owner.EnqueuePacket(new ServerObjectPacket(ObjectOpcode.FriendList, characterSignOut, false));
+            owner.EnqueueMessage(ObjectOpcode.FriendList, characterSignOut);
         }
     }
 }

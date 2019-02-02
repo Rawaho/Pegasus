@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using Pegasus.Network.Packet.Object;
 
 namespace Pegasus.Network
 {
