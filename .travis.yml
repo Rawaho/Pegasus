@@ -1,0 +1,25 @@
+language: csharp
+mono: none
+dotnet: 2.2.100
+os: linux
+dist: xenial
+script:
+  - dotnet build ./Pegasus
+before_deploy:
+  - export TRAVIS_TAG="Travis-"$(git log --format=%H -1)
+  - git tag $TRAVIS_TAG
+  - baseDir=$(pwd)
+  - dotnet publish -c Release -r win-x64 $baseDir/Pegasus --self-contained=false
+  - cd $baseDir/Pegasus/bin/Release/netcoreapp*.*/win-x64/publish/
+  - zip -9 Pegasus *
+  - cd $baseDir
+deploy:
+  provider: releases
+  api_key:
+    secure: kra3m9rLtHshfA9osZhw8z89UP/d1WLr+pckM0xn6ibpb37q0DCagPBL7C7KKSZmTYTqOLPp6otxBMlb16M1X72BzUyTsVXHuPzIpJSYInOEis+2u/Itc6cFwdJOXaPgLRRfh65lgu8LlEBhnTYODgNHNhAaLobheoAAgYta+vP2JiJYqJR/3ob013WBnbDgyZlAL6E894vv0AjWNoBZLm1vTPjKIoowvivPNgE5pW2QLxH3d6rNo9VLh/Q0I/GGw2yOmhQsC6L2szcf6nx5DKffY/vpz0Ge/XlC3poGJqNYFMAab2ultKUilix1ofHhsfIpKe/n3lqQ/EnZS8ocrJcm1eAMRKYEUbvNsnwTRe62/QY2ye1FKsrivxouoSvqVbTAPCCi3F+dOd/c1F/+JRqeEfcVG5jzHFsot1ZwP11q5wW04gF0OWh+qPdskZCK/VLeFwgatjC59r8O5IHGG/IwOI+/MCVwQhZI0CLkYSuizim5ASrtM/AK5ng1TqYYF6OJyBBK55traZDPyIzIV/NwNWQ5bVTIlerI2lZ4oBaX0IFLOkrC18tFCIkmRUAAhMePAyZGZdRal6zRcdsziwtfop6Ft/y/p9new5F8GvQMThqZoCUVZPeVvdAvqg9rCCSmLTzpJTSlLQYQpj//UV9Pv7OKY9xzkGP8MUMwNb0=
+  file_glob: true
+  file: 
+    - ./Pegasus/bin/Release/netcoreapp*.*/win-x64/publish/Pegasus.zip
+  skip_cleanup: true
+  on:
+    branch: master
