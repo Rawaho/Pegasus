@@ -11,7 +11,7 @@ namespace Pegasus.Database.Model
         public float X { get; set; }
         public float Y { get; set; }
         public float Z { get; set; }
-        public byte Rotation { get; set; }
+        public int Rotation { get; set; }
 
         public virtual Dungeon LandBlock { get; set; }
     }

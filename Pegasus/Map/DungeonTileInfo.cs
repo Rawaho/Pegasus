@@ -17,7 +17,7 @@ namespace Pegasus.Map
             LandBlockId = dungeonTile.LandBlockId;
             TileId      = dungeonTile.TileId;
             Origin      = new Vector3(dungeonTile.X, dungeonTile.Y, dungeonTile.Z);
-            Rotation    = dungeonTile.Rotation;
+            Rotation    = (byte)dungeonTile.Rotation;
         }
     }
 }
