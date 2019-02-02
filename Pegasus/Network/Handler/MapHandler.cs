@@ -59,7 +59,7 @@ namespace Pegasus.Network.Handler
                         TileId      = dungeonTileInfo.TileId,
                         LandBlockId = dungeonTileInfo.LandBlockId,
                         ushort_2    = 0,
-                        byte_0      = 1
+                        rotation      = dungeonTileInfo.Rotation
                     });
                 }
 

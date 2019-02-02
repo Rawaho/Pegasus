@@ -18,7 +18,7 @@ namespace Pegasus.Network.Packet.Raw.Model
             public ushort TileId { get; set; }
             public ushort LandBlockId { get; set; }
             public ushort ushort_2 { get; set; }
-            public byte byte_0 { get; set; }
+            public byte rotation { get; set; }
 
             public void Write(BinaryWriter writer)
             {
@@ -32,7 +32,7 @@ namespace Pegasus.Network.Packet.Raw.Model
                 writer.Write(TileId);
                 writer.Write(LandBlockId);
                 writer.Write(ushort_2);
-                writer.Write(byte_0);
+                writer.Write(rotation);
             }
         }
 
