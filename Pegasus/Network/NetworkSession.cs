@@ -119,6 +119,7 @@ namespace Pegasus.Network
             catch (Exception e)
             {
                 log.Error(e);
+                BeginReceive();
             }
         }
 
