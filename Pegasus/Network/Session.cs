@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Pegasus.Database;
 using Pegasus.Database.Model;
 using Pegasus.Map;
 using Pegasus.Social;
@@ -20,16 +21,20 @@ namespace Pegasus.Network
         public List<Channel> Channels { get; } = new List<Channel>();
         public List<Fellowship> Fellowships { get; } = new List<Fellowship>();
 
+        public SessionState GetState()
+        {
+            return State;
+        }
+
         public void SignIn(Account accountInfo, string characterAccount, CharacterObject characterObject)
         {
             Account          = accountInfo;
             CharacterAccount = characterAccount;
             Character        = characterObject;
 
-            State = SessionState.SignedIn;
-
             FriendManager.Initialise(this);
             CharacterUpdateManager.Register(characterObject);
+            
         }
 
         public override void Disconnect()

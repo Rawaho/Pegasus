@@ -1,6 +1,6 @@
 ﻿{
     "Network":{
-        "Host":"0.0.0.0",
+        "Host":"127.0.0.1",
         "Port":13124,
     },
     "MySql":{
@@ -8,6 +8,6 @@
         "Port":3306,
         "Database":"Pegasus",
         "Username":"root",
-        "Password":""
+        "Password":"sienkows1"
     }
 }

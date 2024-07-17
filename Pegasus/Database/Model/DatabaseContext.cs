@@ -75,6 +75,12 @@ namespace Pegasus.Database.Model
                     .HasColumnName("username")
                     .HasColumnType("varchar(50)")
                     .HasDefaultValueSql("''");
+
+                entity.Property(e => e.UserState)
+                    .IsRequired()
+                    .HasColumnName("sessionstate")
+                    .HasColumnType("varchar(50)")
+                    .HasDefaultValueSql("''");
             });
 
             modelBuilder.Entity<Dungeon>(entity =>
