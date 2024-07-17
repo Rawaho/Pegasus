@@ -14,11 +14,11 @@ namespace Pegasus
     {
         private const string DeployVersion = "0001";
 
-#if DEBUG
+        #if DEBUG
         public const string TitleText = "Pegasus: Virindi Integrator Server (Debug)";
-#else
+        #else
         public const string TitleText = "Pegasus: Virindi Integrator Server (Release) - " + DeployVersion;
-#endif
+        #endif
 
         private static readonly ILogger logger = LogManager.GetCurrentClassLogger();
 
