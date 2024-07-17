@@ -15,12 +15,12 @@ namespace Pegasus
         private const string DeployVersion = "0001";
 
         #if DEBUG
-        public const string TitleText = "Pegasus: Virindi Integrator Server (Debug)";
+        public const string Title = "Pegasus: Virindi Integrator Server (Debug)";
         #else
-        public const string TitleText = "Pegasus: Virindi Integrator Server (Release) - " + DeployVersion;
+        public const string Title = "Pegasus: Virindi Integrator Server (Release) - " + DeployVersion;
         #endif
 
-        private static readonly ILogger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger log = LogManager.GetCurrentClassLogger();
 
         public static DateTime StartTime { get; } = DateTime.Now;
 
@@ -31,12 +31,12 @@ namespace Pegasus
 
             Directory.SetCurrentDirectory(location);
 
-            Console.Title = TitleText;
-            logger.Info("Initialising...");
+            Console.Title = Title;
+            log.Info("Initialising...");
 
             try
             {
-                ConfigManager.Initialise(Path.Combine(Directory.GetCurrentDirectory(), "Config.json"));
+                ConfigManager.Initialise($"{Directory.GetCurrentDirectory()}\\Config.json");
                 PacketManager.Initialise();
                 DungeonTileManager.Initialise();
                 NetworkManager.Initialise();
@@ -48,11 +48,11 @@ namespace Pegasus
                     ChannelManager.Update(lastTick);
                 });
 
-                logger.Info("Ready!");
+                log.Info("Ready!");
             }
             catch (Exception exception)
             {
-                logger.Error(exception);
+                log.Error(exception);
             }
         }
 
