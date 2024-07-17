@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Pegasus.Cryptography;
 using Pegasus.Database.Model;
-using Pegasus.Network;
 
 namespace Pegasus.Database
 {
@@ -22,7 +20,6 @@ namespace Pegasus.Database
                     Password   = BCryptProvider.HashPassword(password),
                     CreateIp   = ip.ToString(),
                     Privileges = (short)privileges
-
                 });
 
                 context.SaveChanges();
@@ -36,16 +33,14 @@ namespace Pegasus.Database
                 return context.Account.SingleOrDefault(a => a.Username == username);
         }
 
-        public static void UpdateAccount(uint id, IPAddress ip, SessionState UserState)
+        public static void UpdateAccount(uint id, IPAddress ip)
         {
             using (var context = new DatabaseContext())
             {
                 var account = new Account
                 {
                     Id     = id,
-                    LastIp = ip.ToString(),
-                    LastTime = DateTime.UtcNow,
-                    UserState = UserState.ToString()
+                    LastIp = ip.ToString()
                 };
 
                 EntityEntry<Account> entity = context.Attach(account);
@@ -54,22 +49,8 @@ namespace Pegasus.Database
                 context.SaveChanges();
             }
         }
-        public static void UpdateDatabaseUserSessionState(SessionState UserState)
-        {
-            using (var context = new DatabaseContext())
-            {
-               var account = new Account
-               {
-                   UserState = UserState.ToString()
-               };
 
-               EntityEntry<Account> entity = context.Attach(account);
-               entity.Property(p => p.UserState).IsModified = true;
-
-               context.SaveChanges();
-            }
-        }
-            public static void AddFriend(uint id, uint friendId)
+        public static void AddFriend(uint id, uint friendId)
         {
             using (var context = new DatabaseContext())
             {
@@ -129,6 +110,5 @@ namespace Pegasus.Database
                     .AsNoTracking()
                     .ToList();
         }
-
     }
 }

@@ -59,7 +59,7 @@ namespace Pegasus.Network.Handler
 
             log.Info($"Account: {accountInfo.Username}, Character: {characterObject.Name} has signed in!");
 
-            DatabaseManager.UpdateAccount(accountInfo.Id, session.Remote.Address, session.State);
+            DatabaseManager.UpdateAccount(accountInfo.Id, session.Remote.Address);
 
             var authentication = new NetworkObject();
             authentication.AddField(0, NetworkObjectField.CreateIntField((int)ObjectOpcode.Authenticate));

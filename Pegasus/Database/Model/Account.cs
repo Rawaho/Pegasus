@@ -1,5 +1,4 @@
-﻿using Pegasus.Network;
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Pegasus.Database.Model
@@ -19,7 +18,6 @@ namespace Pegasus.Database.Model
         public DateTime CreateTime { get; set; }
         public string LastIp { get; set; }
         public DateTime LastTime { get; set; }
-        public string UserState { get; set; } 
 
         public virtual Friend FriendIdNavigation { get; set; }
         public virtual ICollection<Friend> FriendFriend1Navigation { get; set; }
